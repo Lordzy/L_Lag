@@ -1,7 +1,7 @@
 /*
 ________________________________________________________________________________
 
-								L_Lag - v1.0
+								L_Lag - v1.1
 								    By
 								  Lordzy
 
@@ -20,9 +20,17 @@ LICENSE:
 
 native TogglePlayerLag(playerid, bool:lag_state, lag_delay = 3000);
 native GetPlayerLagState(playerid);
+native ReconnectPlayer(playerid);
+
+ChangeLogs:
+
+- Uses function BlockIpAddress for SA-MP versions 0.3z R2-2 and above.
+- Adds new optional function : ReconnectPlayer
 ________________________________________________________________________________*/
 
 #tryinclude <a_samp>
+#tryinclude <zcmd>
+
 
 new static
 	g_PlayerLagTimer[MAX_PLAYERS] = {-1, ...},
@@ -96,11 +104,16 @@ public OnPlayerDisconnect(playerid, reason) {
         
         if(reason != 2) {
 
+		#if defined BlockIpAddress
+		
+		    UnBlockIpAddress(g_PlayerIp[playerid]);
+		#else
 	        new
 	            temp_String[32];
 
 			format(temp_String, sizeof(temp_String), "unbanip %s", g_PlayerIp[playerid]);
 			SendRconCommand(temp_String);
+		#endif
 		}
 	}
 	#if defined L_LAG_OnPlayerDisconnect
@@ -112,19 +125,25 @@ public OnPlayerDisconnect(playerid, reason) {
 
 stock TogglePlayerLag(playerid, bool:toggle, lag_delay = 3000) {
 
+	#if !defined BlockIpAddress
 	new
 	    temp_String[32];
-	    
+	#endif
+	
 	if(toggle) {
 	
 		if(g_PlayerLagTimer[playerid] != -1)
 		    return 0;
 
 
+	#if defined BlockIpAddress
+	    BlockIpAddress(g_PlayerIp[playerid], lag_delay);
+	#else
 		format(temp_String, sizeof(temp_String), "banip %s", g_PlayerIp[playerid]);
 		SendRconCommand(temp_String);
+	#endif
 		g_LagState[playerid] = true;
-		g_PlayerLagTimer[playerid] = SetTimerEx("L_LagPlayer", lag_delay, true, "d", playerid);
+		g_PlayerLagTimer[playerid] = SetTimerEx("L_LagPlayer", lag_delay, true, "dd", playerid, lag_delay);
 	}
 	else {
 	
@@ -133,9 +152,13 @@ stock TogglePlayerLag(playerid, bool:toggle, lag_delay = 3000) {
 	        
 		KillTimer(g_PlayerLagTimer[playerid]);
 		g_PlayerLagTimer[playerid] = -1;
-		
+
+	#if defined BlockIpAddress
+	    UnBlockIpAddress(g_PlayerIp[playerid]);
+	#else
 		format(temp_String, sizeof(temp_String), "unbanip %s", g_PlayerIp[playerid]);
 		SendRconCommand(temp_String);
+	#endif
 		g_LagState[playerid] = false;
 
 	}
@@ -148,24 +171,36 @@ stock GetPlayerLagState(playerid) {
 }
 
 
-forward L_LagPlayer(playerid);
+forward L_LagPlayer(playerid, lag_delay);
 
-public L_LagPlayer(playerid) {
+public L_LagPlayer(playerid, lag_delay) {
 
+	#if !defined BlockIpAddress
 	new
 	    temp_String[32];
-	    
+	#endif
+	
 	if(g_LagState[playerid]) {
 	
+ 	#if defined BlockIpAddress
+		UnBlockIpAddress(g_PlayerIp[playerid]);
+	#else
 	    format(temp_String, sizeof(temp_String), "unbanip %s", g_PlayerIp[playerid]);
+	#endif
 	    g_LagState[playerid] = false;
 	}
 	else {
-	
+
+	#if defined BlockIpAddress
+	    BlockIpAddress(g_PlayerIp[playerid], lag_delay);
+	#else
 	    format(temp_String, sizeof(temp_String), "banip %s", g_PlayerIp[playerid]);
+	#endif
 		g_LagState[playerid] = true;
 	}
+	#if !defined BlockIpAddress
 	SendRconCommand(temp_String);
+	#endif
 	
 	return 1;
 }
@@ -215,5 +250,9 @@ public L_LagPlayer(playerid) {
 
 #if defined L_LAG_OnPlayerDisconnect
 	forward L_LAG_OnPlayerDisconnect(playerid, reason);
+#endif
+
+#if !defined ReconnectPlayer
+	#define ReconnectPlayer(%0) TogglePlayerLag(%0, true, 20000) //set to  20 seconds, but player will time out before that.
 #endif
 
