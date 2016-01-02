@@ -29,7 +29,6 @@ ChangeLogs:
 ________________________________________________________________________________*/
 
 #tryinclude <a_samp>
-#tryinclude <zcmd>
 
 
 new static
