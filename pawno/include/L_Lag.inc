@@ -28,6 +28,12 @@ ChangeLogs:
 - Adds new optional function : ReconnectPlayer
 ________________________________________________________________________________*/
 
+#if defined _included_L_Lag
+    #endinput
+#endif
+
+#define _included_L_Lag
+
 #tryinclude <a_samp>
 
 
